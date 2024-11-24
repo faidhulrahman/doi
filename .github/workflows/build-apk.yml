@@ -1,0 +1,52 @@
+name: Android Flutter Build
+
+on:
+  push:
+    branches:
+      - main 
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Android
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin' # AdoptOpenJDK
+          java-version: '11'
+  
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.STAGING_KEYSTORE_BASE64 }}" | base64 -d > android/key.jks
+  
+      - name: Create Key Properties
+        run: |
+          echo "${{ secrets.STAGING_KEY_PROPERTIES }}" > android/key.properties
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.3' # My current version of flutter
+          channel: 'stable'
+          cache: true
+          cache-key: 'flutter-:os:-:channel:-:version:-:arch:-:hash:'
+          cache-path: '${{ runner.tool_cache }}/flutter/:channel:-:version:-:arch:' 
+          architecture: x64
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: app-release.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
